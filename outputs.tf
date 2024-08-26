@@ -1,3 +1,7 @@
-output "storage_account_name" {
-  value = azurerm_storage_account.this.name
+output "log_group_name" {
+  value = "pippo"
+}
+
+output "log_stream_name" {
+  value = "pluto"
 }
