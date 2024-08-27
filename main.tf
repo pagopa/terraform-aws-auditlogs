@@ -7,6 +7,10 @@ data "archive_file" "this" {
   output_path = "./lambda.zip"
 }
 
+resource "random_id" "unique" {
+  byte_length = 3
+}
+
 resource "random_integer" "audit_bucket_suffix" {
   min = 1000
   max = 9999
@@ -16,10 +20,11 @@ locals {
   bucket_name = format("%s-%s", "auditlogs",
     random_integer.audit_bucket_suffix.result
   )
+  project = "auditLogs-es-d-${random_id.unique.hex}"
 }
 
 resource "aws_cloudwatch_log_group" "this" {
-  name = "auditlogs"
+  name = "${local.project}-log-group"
 
   retention_in_days = 14
 
@@ -29,12 +34,12 @@ resource "aws_cloudwatch_log_group" "this" {
 }
 
 resource "aws_cloudwatch_log_stream" "this" {
-  name           = "SampleLogStream"
+  name           = "${local.project}-log-stream"
   log_group_name = aws_cloudwatch_log_group.this.name
 }
 
 resource "aws_kinesis_stream" "this" {
-  name             = "log-group-stream"
+  name             = "${local.project}-kinesis-stream"
   shard_count      = 0
   retention_period = 48
 
@@ -63,7 +68,7 @@ module "s3_assets_bucket" {
 }
 
 resource "aws_iam_role" "cloudwatchRole" {
-  name = "cloudwatchRole_auditLogs"
+  name = "${local.project}-cloudwatch-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -104,7 +109,7 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_kinesis" {
 }
 
 resource "aws_cloudwatch_log_subscription_filter" "this" {
-  name            = "test_lambdafunction_logfilter"
+  name            = "${local.project}-lambda-log"
   role_arn        = aws_iam_role.cloudwatchRole.arn
   log_group_name  = aws_cloudwatch_log_group.this.name
   filter_pattern  = ""
@@ -112,7 +117,7 @@ resource "aws_cloudwatch_log_subscription_filter" "this" {
 }
 
 resource "aws_iam_role" "firehoseRole" {
-  name = "firehoseRole_auditLogs"
+  name = "${local.project}-firehoseRole"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -156,7 +161,7 @@ resource "aws_iam_role_policy_attachment" "firehose_kinesis" {
 
 
 resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
-  name        = "firehose-delivery"
+  name        = "${local.project}-firehose-delivery"
   destination = "extended_s3"
 
   extended_s3_configuration {
