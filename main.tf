@@ -95,9 +95,10 @@ resource "aws_iam_policy" "cloudwatch_kinesis" {
         Sid    = "",
         Effect = "Allow",
         Action = [
-          "kinesis:PutRecord"
+          "kinesis:PutRecord",
+          "kinesis:PutRecords"
         ],
-        Resource = "*"
+        Resource = "${aws_kinesis_stream.this.arn}"
       }
     ]
   })
@@ -146,9 +147,17 @@ resource "aws_iam_policy" "firehose_kinesis" {
           "kinesis:DescribeStream",
           "kinesis:GetShardIterator",
           "kinesis:GetRecords",
-          "kinesis:ListShards"
+          "kinesis:ListShards",
+          "kinesis:ListStreams"
         ],
         Resource = "${aws_kinesis_stream.this.arn}"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:PutObject"
+        ],
+        Resource = "${module.s3_assets_bucket.s3_bucket_arn}/*"
       }
     ]
   })
@@ -167,8 +176,18 @@ resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
   extended_s3_configuration {
     role_arn   = aws_iam_role.firehoseRole.arn
     bucket_arn = module.s3_assets_bucket.s3_bucket_arn
-    //file_extension = ".json"
+    prefix     = "logs/"
 
+    processing_configuration {
+      enabled = "true"
+      processors {
+        type = "Decompression"
+        parameters {
+          parameter_name  = "CompressionFormat"
+          parameter_value = "GZIP"
+        }
+      }
+    }
     # dynamic_partitioning_configuration {
     #   enabled = true
     # }
