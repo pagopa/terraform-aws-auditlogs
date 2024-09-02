@@ -21,7 +21,8 @@ def lambda_handler(event, context):
     # Create the log entry
     log_data = {
         "timestamp" : int(time.time() * 1000),
-        "log_message" : f"This is an audit log entry at {time.strftime('%Y-%m-%d %H:%M:%S')}."
+        "log_message" : f"This is an audit log entry at {time.strftime('%Y-%m-%d %H:%M:%S')}.",
+        "audit" : "false"
     }
     
     log_json = json.dumps(log_data)

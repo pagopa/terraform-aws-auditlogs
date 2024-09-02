@@ -25,7 +25,7 @@ locals {
 
 resource "aws_cloudwatch_log_group" "this" {
   name = "${local.project}-log-group"
-
+  
   retention_in_days = 14
 
   tags = {
@@ -113,7 +113,7 @@ resource "aws_cloudwatch_log_subscription_filter" "this" {
   name            = "${local.project}-lambda-log"
   role_arn        = aws_iam_role.cloudwatchRole.arn
   log_group_name  = aws_cloudwatch_log_group.this.name
-  filter_pattern  = ""
+  filter_pattern  = "{ $.audit = \"true\" }"
   destination_arn = aws_kinesis_stream.this.arn
 }
 
