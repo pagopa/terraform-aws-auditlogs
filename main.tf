@@ -20,6 +20,7 @@ locals {
   bucket_name = format("%s-%s", "auditlogs",
     random_integer.audit_bucket_suffix.result
   )
+  athena_outputs = format("query-%s", local.bucket_name)
   project = "auditLogs-es-d-${random_id.unique.hex}"
 }
 
@@ -252,6 +253,117 @@ resource "aws_lambda_function" "lambda_function" {
       log_group_name  = "${aws_cloudwatch_log_group.this.name}"
       log_stream_name = "${aws_cloudwatch_log_stream.this.name}"
     }
+  }
+}
+
+module "s3_athena_output_bucket" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "4.1.1"
+
+  bucket = local.athena_outputs
+  acl    = "private"
+
+  control_object_ownership = true
+  object_ownership         = "ObjectWriter"
+
+  tags = {
+    Name = local.bucket_name
+  }
+}
+
+resource "aws_athena_workgroup" "audit_workgroup" {
+  name = "audit_workgroup"
+
+  configuration {
+    result_configuration {
+      output_location = "s3://${local.athena_outputs}/output/"
+    }
+  }
+}
+
+# Create Athena database
+resource "aws_athena_database" "audit" {
+  name   = "auditlogsathenadb"
+  bucket = module.s3_athena_output_bucket.s3_bucket_id
+}
+
+data "aws_iam_policy_document" "glue_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["glue.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "glue_audit" {
+  name               = "AWSGlueServiceRole-AuditLogs"
+  assume_role_policy = data.aws_iam_policy_document.glue_assume_role_policy.json
+  path               = "/service-role/"
+}
+
+data "aws_iam_policy_document" "glue_audit_policy" {
+  statement {
+    sid       = "S3ReadAndWrite"
+    effect    = "Allow"
+    resources = ["arn:aws:s3:::${module.s3_assets_bucket.s3_bucket_id}/*"]
+    actions   = ["s3:GetObject", "s3:PutObject"]
+  }
+}
+
+resource "aws_iam_policy" "glue_audit_policy" {
+  name        = "AWSGlueServiceRoleAuditS3Policy"
+  description = "S3 bucket audit policy for glue."
+  policy      = data.aws_iam_policy_document.glue_audit_policy.json
+}
+
+locals {
+  glue_audit_policy = [
+    "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole",
+    aws_iam_policy.glue_audit_policy.arn,
+  ]
+}
+
+resource "aws_iam_role_policy_attachment" "glue_s3_audit_policy" {
+  count      = length(local.glue_audit_policy)
+  role       = aws_iam_role.glue_audit.name
+  policy_arn = local.glue_audit_policy[count.index]
+
+}
+
+resource "aws_glue_catalog_database" "audit" {
+  name = "audit"
+}
+
+#Check multiple tables creation
+resource "aws_glue_crawler" "audit" {
+  database_name = aws_glue_catalog_database.audit.name
+  name          = "audit"
+  role          = aws_iam_role.glue_audit.arn
+
+  description = "Crawler for the audit bucket"
+  schedule    = var.audit_crawler_schedule
+  configuration = jsonencode(
+    {
+      # CrawlerOutput = {
+      #   Tables = {
+      #     TableThreshold = 1
+      #   }
+      # }
+       
+      # CreatePartitionIndex = true
+      Grouping = {
+        TableGroupingPolicy = "CombineCompatibleSchemas"
+      }
+      Version              = 1.0
+
+    }
+  )
+
+  s3_target {
+    path = "s3://${module.s3_assets_bucket.s3_bucket_id}/logs"
   }
 }
 
