@@ -15,5 +15,5 @@ variable "tags" {
 variable "prefix" {
   description = "Resorce prefix"
   type        = string
-  default     = "adl-t-itn"
+  default     = "auditLogs-es-d"
 }

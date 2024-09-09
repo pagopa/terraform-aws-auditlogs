@@ -1,60 +1,36 @@
-resource "azurerm_resource_group" "rg" {
-  name     = "${local.project}-rg"
-  location = var.location
-
-  tags = var.tags
+resource "random_integer" "audit_bucket_suffix" {
+  min = 1000
+  max = 9999
 }
 
-resource "azurerm_log_analytics_workspace" "this" {
-  name                = "${local.project}-log"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
-  sku                 = "PerGB2018"
-
-  tags = var.tags
-}
-
-resource "azurerm_application_insights" "this" {
-  name                = "${local.project}-appi"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
-  application_type    = "web"
-  workspace_id        = azurerm_log_analytics_workspace.this.id
-
-  tags = var.tags
-}
-
-module "azure_auditlogs" {
+module "aws_auditlogs" {
   source              = "../.."
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = var.location
-
-  storage_account = {
-    name                               = replace("${local.project}st", "-", ""),
-    immutability_policy_enabled        = false,
-    immutability_policy_retention_days = 1,
+  
+  cloudwatch = {
+    filter_pattern = "{ $.audit = \"true\" }",
+    log_group_name = "${local.project}-log-group",
+    log_stream_name = "${local.project}-log-stream",
+    subscription_filter_name = "${local.project}-subscription-filter"
+    role_name  = "${local.project}-cloudwatch-role-name" #Optional
   }
 
-  event_hub = {
-    namespace_name           = "${local.project}-evhns",
-    maximum_throughput_units = 1
+  s3_bucket_name =  "${local.project}-s3-bucket"
+
+  athena_workgroup_name = "${local.project}-workgroup"
+
+  glue = {
+    crawler_name = "${local.project}-crawler",
+    database_name = "${local.project}-database"
   }
 
-  log_analytics_workspace = {
-    id            = azurerm_log_analytics_workspace.this.id,
-    export_tables = ["AppEvents"],
+  kinesis_stream_name = "${local.project}-kinesis-stream"
+
+  firehose = {
+    stream_name = "${local.project}-firehose-stream"
   }
 
-  stream_analytics_job = {
-    name            = "${local.project}-job"
-    streaming_units = 3
+  lambda = {
+    role_name = "${local.project}-lambda-role-name"
+    policy_name =  "${local.project}-lambda-policy-name"
   }
-
-  data_explorer = {
-    name         = "${local.project}-dec",
-    sku_name     = "Dev(No SLA)_Standard_E2a_v4",
-    sku_capacity = 1,
-  }
-
-  tags = var.tags
 }
