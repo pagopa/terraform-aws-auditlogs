@@ -44,9 +44,5 @@ variable "firehose" {
   })
 }
 
-variable "lambda" {
-  type = object({
-    role_name   = optional(string, "audit-logs-lambda-role"),
-    policy_name = optional(string,  "audit-logs-lambda-policy")
-  })
-}
+
+

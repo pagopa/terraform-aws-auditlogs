@@ -1,11 +1,11 @@
 data "aws_caller_identity" "current" {}
 
 
-data "archive_file" "this" {
-  type        = "zip"
-  source_file = "./index.py"
-  output_path = "./lambda.zip"
-}
+# data "archive_file" "this" {
+#   type        = "zip"
+#   source_file = "./index.py"
+#   output_path = "./lambda.zip"
+# }
 
 resource "random_id" "unique" {
   byte_length = 3
@@ -13,13 +13,13 @@ resource "random_id" "unique" {
 
 
 
-locals {
-  bucket_name = format("%s-%s", var.s3_bucket_name,
-    random_integer.audit_bucket_suffix.result
-  )
-  athena_outputs = format("query-%s", var.s3_bucket_name)
-  project = "auditLogs-es-d-${random_id.unique.hex}"
-}
+# locals {
+#   bucket_name = format("%s-%s", var.s3_bucket_name,
+#     random_integer.audit_bucket_suffix.result
+#   )
+#   athena_outputs = format("query-%s", var.s3_bucket_name)
+#   project = "auditLogs-es-d-${random_id.unique.hex}"
+# }
 
 resource "aws_cloudwatch_log_group" "this" {
   name = var.cloudwatch.log_group_name
@@ -180,7 +180,7 @@ resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
     bucket_arn = module.s3_assets_bucket.s3_bucket_arn
     prefix     = "logs/year_!{timestamp:yyyy}/month_!{timestamp:MM}/day_!{timestamp:dd}/"
     error_output_prefix = "errors/year_!{timestamp:yyyy}/month_!{timestamp:MM}/day_!{timestamp:dd}/!{firehose:error-output-type}/"
-
+    
     processing_configuration {
       enabled = "true"
       processors {
@@ -189,6 +189,9 @@ resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
           parameter_name  = "CompressionFormat"
           parameter_value = "GZIP"
         }
+      }
+      processors {
+        type = "AppendDelimiterToRecord"
       }
     }
     file_extension = ".json"
@@ -204,83 +207,79 @@ resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
   }
 }
 
-resource "aws_iam_role" "lambda" {
-  name = var.lambda.role_name
+# resource "aws_iam_role" "lambda" {
+#   name = var.lambda.role_name
  
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow",
-      Principal = {
-        Service = "lambda.amazonaws.com"
-      },
-      Action = ["sts:AssumeRole"]
-    }]
-  })
-}
+#   assume_role_policy = jsonencode({
+#     Version = "2012-10-17",
+#     Statement = [{
+#       Effect = "Allow",
+#       Principal = {
+#         Service = "lambda.amazonaws.com"
+#       },
+#       Action = ["sts:AssumeRole"]
+#     }]
+#   })
+# }
 
-resource "aws_iam_policy" "lambda" {
-  name = var.lambda.policy_name
+# resource "aws_iam_policy" "lambda" {
+#   name = var.lambda.policy_name
  
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action = [
-          "logs:CreateLogStream",
-          "logs:CreateLogGroup",
-          "logs:PutLogEvents"
-        ],
-        Effect   = "Allow",
-        Resource = "arn:aws:logs:*:*:*"
-      }
-    ]
-  })
-}
+#   policy = jsonencode({
+#     Version = "2012-10-17",
+#     Statement = [
+#       {
+#         Action = [
+#           "logs:CreateLogStream",
+#           "logs:CreateLogGroup",
+#           "logs:PutLogEvents"
+#         ],
+#         Effect   = "Allow",
+#         Resource = "arn:aws:logs:*:*:*"
+#       }
+#     ]
+#   })
+# }
 
-resource "aws_iam_role_policy_attachment" "function_logging_policy_attachment" {
-  role       = aws_iam_role.lambda.id
-  policy_arn = aws_iam_policy.lambda.arn
-}
+# resource "aws_iam_role_policy_attachment" "function_logging_policy_attachment" {
+#   role       = aws_iam_role.lambda.id
+#   policy_arn = aws_iam_policy.lambda.arn
+# }
 
-resource "aws_lambda_function" "lambda_function" {
-  filename      = "./lambda.zip"
-  function_name = "test_lambda_logs"
-  role          = aws_iam_role.lambda.arn
-  handler       = "index.lambda_handler"
-  depends_on    = [aws_cloudwatch_log_group.this]
-  runtime       = "python3.12"
-  environment {
-    variables = {
-      log_group_name  = "${aws_cloudwatch_log_group.this.name}"
-      log_stream_name = "${aws_cloudwatch_log_stream.this.name}"
-    }
-  }
-}
+# resource "aws_lambda_function" "lambda_function" {
+#   filename      = "./lambda.zip"
+#   function_name = "test_lambda_logs"
+#   role          = aws_iam_role.lambda.arn
+#   handler       = "index.lambda_handler"
+#   depends_on    = [aws_cloudwatch_log_group.this]
+#   runtime       = "python3.12"
+#   environment {
+#     variables = {
+#       log_group_name  = "${aws_cloudwatch_log_group.this.name}"
+#       log_stream_name = "${aws_cloudwatch_log_stream.this.name}"
+#     }
+#   }
+# }
 
-module "s3_athena_output_bucket" {
-  source  = "terraform-aws-modules/s3-bucket/aws"
-  version = "4.1.1"
+# module "s3_athena_output_bucket" {
+#   source  = "terraform-aws-modules/s3-bucket/aws"
+#   version = "4.1.1"
 
-  bucket = local.athena_outputs
-  acl    = "private"
+#   bucket = var.athena_output
+#   acl    = "private"
 
-  control_object_ownership = true
-  object_ownership         = "ObjectWriter"
-
-  tags = {
-    Name = local.bucket_name
-  }
-}
+#   control_object_ownership = true
+#   object_ownership         = "ObjectWriter"
+# }
 
 resource "aws_athena_workgroup" "audit_workgroup" {
   name = var.athena_workgroup_name 
 
-  configuration {
-    result_configuration {
-      output_location = "s3://${local.athena_outputs}/output/"
-    }
-  }
+  # configuration {
+  #   result_configuration {
+  #     output_location = "s3://${var.athena_output}/output/"
+  #   }
+  # }
 }
 
 

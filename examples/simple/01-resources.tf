@@ -8,29 +8,24 @@ module "aws_auditlogs" {
   
   cloudwatch = {
     filter_pattern = "{ $.audit = \"true\" }",
-    log_group_name = "${local.project}-log-group",
-    log_stream_name = "${local.project}-log-stream",
-    subscription_filter_name = "${local.project}-subscription-filter"
-    role_name  = "${local.project}-cloudwatch-role-name" #Optional
+    log_group_name = "${local.project}-audit-log-group", #Optional
+    log_stream_name = "${local.project}-audit-log-stream",  #Optional
+    subscription_filter_name = "${local.project}-audit-subscription-filter",  #Optional
+    role_name  = "${local.project}-audit-cloudwatch-role-name" #Optional
   }
 
-  s3_bucket_name =  "${local.project}-s3-bucket"
-
-  athena_workgroup_name = "${local.project}-workgroup"
+  s3_bucket_name =  "${local.project}-audit-s3-bucket"  #Optional
+  
+  athena_workgroup_name = "${local.project}-audit-workgroup"  #Optional
 
   glue = {
-    crawler_name = "${local.project}-crawler",
-    database_name = "${local.project}-database"
+    crawler_name = "${local.project}-audit-crawler",  #Optional
+    database_name = "${local.project}-audit-database"  #Optional
   }
 
-  kinesis_stream_name = "${local.project}-kinesis-stream"
+  kinesis_stream_name = "${local.project}-audit-kinesis-stream"  #Optional
 
   firehose = {
-    stream_name = "${local.project}-firehose-stream"
-  }
-
-  lambda = {
-    role_name = "${local.project}-lambda-role-name"
-    policy_name =  "${local.project}-lambda-policy-name"
+    stream_name = "${local.project}-audit-firehose-stream"  #Optional
   }
 }

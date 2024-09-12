@@ -1,22 +1,18 @@
 terraform {
-  required_version = ">= 1.3.0"
+  required_version = "1.9.0"
 
   required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~>3.39"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.65.0"
     }
   }
 }
 
-provider "azurerm" {
-  features {
-    key_vault {
-      purge_soft_delete_on_destroy = false
-    }
-    resource_group {
-      prevent_deletion_if_contains_resources = false
-    }
+provider "aws" {
+  region = var.aws_region
+  default_tags {
+    tags = var.tags
   }
 }
 
@@ -24,10 +20,9 @@ resource "random_id" "unique" {
   byte_length = 3
 }
 
-data "azurerm_subscription" "current" {}
-
-data "azurerm_client_config" "current" {}
-
 locals {
-  project = "${var.prefix}-${random_id.unique.hex}"
+  project         = "${var.prefix}-${random_id.unique.hex}"
+  log_group_name  = "${local.project}-audit-log-group"
+  log_stream_name = "${local.project}-audit-log-stream"
+  log_throuput    = 1000
 }
