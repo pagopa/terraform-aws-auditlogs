@@ -140,8 +140,8 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
   extended_s3_configuration {
     role_arn            = aws_iam_role.firehose.arn
     bucket_arn          = module.s3_assets_bucket.s3_bucket_arn
-    prefix              = "logs/year_!{timestamp:yyyy}/month_!{timestamp:MM}/day_!{timestamp:dd}/"
-    error_output_prefix = "errors/year_!{timestamp:yyyy}/month_!{timestamp:MM}/day_!{timestamp:dd}/!{firehose:error-output-type}/"
+    prefix              = "logs/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"
+    error_output_prefix = "errors/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/!{firehose:error-output-type}/"
 
     processing_configuration {
       enabled = "true"
@@ -167,6 +167,15 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
 
 resource "aws_athena_workgroup" "this" {
   name = var.athena.workgroup_name
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    publish_cloudwatch_metrics_enabled = false
+
+    result_configuration {
+      output_location = "s3://${module.s3_assets_bucket.s3_bucket_id}/athena-workgroup" # todo use another bucket
+    }
+  }
 }
 
 data "aws_iam_policy_document" "glue_assume_role_policy" {
