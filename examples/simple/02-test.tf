@@ -6,7 +6,7 @@ data "archive_file" "this" {
 
 # resource "aws_cloudwatch_log_group" "this" {
 #   name = "${local.project}-log-group"
-  
+
 #   retention_in_days = 14
 
 #   tags = {
@@ -20,7 +20,7 @@ data "archive_file" "this" {
 # }
 
 resource "aws_cloudwatch_event_rule" "this" {
-  name        = "${local.project}-audit-rule"
+  name = "${local.project}-audit-rule"
 
   schedule_expression = "rate(1 minute)"
 }
@@ -33,7 +33,7 @@ resource "aws_cloudwatch_event_target" "this" {
 
 resource "aws_iam_role" "lambda" {
   name = var.lambda.role_name
- 
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -48,7 +48,7 @@ resource "aws_iam_role" "lambda" {
 
 resource "aws_iam_policy" "lambda" {
   name = var.lambda.policy_name
- 
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -81,7 +81,7 @@ resource "aws_lambda_function" "lambda_function" {
     variables = {
       log_group_name  = "${local.log_group_name}"
       log_stream_name = "${local.log_stream_name}"
-      log_throuput    =  "${local.log_throuput}"
+      log_throuput    = "${local.log_throuput}"
     }
   }
 }
@@ -89,7 +89,7 @@ resource "aws_lambda_function" "lambda_function" {
 resource "aws_lambda_permission" "allow_cloudwatch" {
   statement_id  = "AWSEvents_trigger-lambda"
   action        = "lambda:InvokeFunction"
-  function_name = "${aws_lambda_function.lambda_function.function_name}"
+  function_name = aws_lambda_function.lambda_function.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = "${aws_cloudwatch_event_rule.this.arn}"
+  source_arn    = aws_cloudwatch_event_rule.this.arn
 }

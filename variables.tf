@@ -25,10 +25,10 @@ variable "athena_workgroup_name" {
 
 variable "glue" {
   type = object({
-    crawler_name       = string,
-    database_name      = string,
-    role_name          = optional(string, "audit-logs-glue-role"),
-    policy_name        = optional(string, "audit-logs-glue-policy")
+    crawler_name  = string,
+    database_name = string,
+    role_name     = optional(string, "audit-logs-glue-role"),
+    policy_name   = optional(string, "audit-logs-glue-policy")
   })
 }
 
@@ -39,8 +39,8 @@ variable "kinesis_stream_name" {
 variable "firehose" {
   type = object({
     stream_name = string,
-    role_name   = optional(string,"audit-logs-firehose-role"),
-    policy_name = optional(string,"audit-logs-firehose-kinesis-policy")
+    role_name   = optional(string, "audit-logs-firehose-role"),
+    policy_name = optional(string, "audit-logs-firehose-kinesis-policy")
   })
 }
 

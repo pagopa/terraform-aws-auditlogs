@@ -24,7 +24,7 @@ variable "lambda" {
     policy_name = optional(string)
   })
   default = {
-    role_name   =  "audit-logs-lambda-role",
+    role_name   = "audit-logs-lambda-role",
     policy_name = "audit-logs-lambda-policy"
   }
 }

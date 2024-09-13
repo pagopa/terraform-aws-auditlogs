@@ -23,7 +23,7 @@ resource "random_id" "unique" {
 
 resource "aws_cloudwatch_log_group" "this" {
   name = var.cloudwatch.log_group_name
-  
+
   retention_in_days = 14
 
   tags = {
@@ -85,7 +85,7 @@ resource "aws_iam_role" "cloudwatch_kinesis" {
 
 resource "aws_iam_policy" "cloudwatch_kinesis" {
   name_prefix = var.cloudwatch.policy_name
- 
+
   policy = jsonencode({
 
     Version = "2012-10-17",
@@ -109,17 +109,17 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_kinesis" {
 }
 
 resource "aws_cloudwatch_log_subscription_filter" "this" {
-  name            = var.cloudwatch.subscription_filter_name
-  role_arn        = aws_iam_role.cloudwatch_kinesis.arn
-  log_group_name  = var.cloudwatch.log_group_name
-  filter_pattern  = var.cloudwatch.filter_pattern
+  name           = var.cloudwatch.subscription_filter_name
+  role_arn       = aws_iam_role.cloudwatch_kinesis.arn
+  log_group_name = var.cloudwatch.log_group_name
+  filter_pattern = var.cloudwatch.filter_pattern
   #"{ $.audit = \"true\" }"
   destination_arn = aws_kinesis_stream.this.arn
 }
 
 resource "aws_iam_role" "firehose" {
   name = var.firehose.role_name
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -137,7 +137,7 @@ resource "aws_iam_role" "firehose" {
 
 resource "aws_iam_policy" "firehose_kinesis" {
   name_prefix = var.firehose.policy_name
-  
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -173,14 +173,14 @@ resource "aws_iam_role_policy_attachment" "firehose_kinesis" {
 resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
   name        = var.firehose.stream_name
   destination = "extended_s3"
-  
-  
+
+
   extended_s3_configuration {
-    role_arn   = aws_iam_role.firehose.arn
-    bucket_arn = module.s3_assets_bucket.s3_bucket_arn
-    prefix     = "logs/year_!{timestamp:yyyy}/month_!{timestamp:MM}/day_!{timestamp:dd}/"
+    role_arn            = aws_iam_role.firehose.arn
+    bucket_arn          = module.s3_assets_bucket.s3_bucket_arn
+    prefix              = "logs/year_!{timestamp:yyyy}/month_!{timestamp:MM}/day_!{timestamp:dd}/"
     error_output_prefix = "errors/year_!{timestamp:yyyy}/month_!{timestamp:MM}/day_!{timestamp:dd}/!{firehose:error-output-type}/"
-    
+
     processing_configuration {
       enabled = "true"
       processors {
@@ -209,7 +209,7 @@ resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
 
 # resource "aws_iam_role" "lambda" {
 #   name = var.lambda.role_name
- 
+
 #   assume_role_policy = jsonencode({
 #     Version = "2012-10-17",
 #     Statement = [{
@@ -224,7 +224,7 @@ resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
 
 # resource "aws_iam_policy" "lambda" {
 #   name = var.lambda.policy_name
- 
+
 #   policy = jsonencode({
 #     Version = "2012-10-17",
 #     Statement = [
@@ -273,7 +273,7 @@ resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
 # }
 
 resource "aws_athena_workgroup" "audit_workgroup" {
-  name = var.athena_workgroup_name 
+  name = var.athena_workgroup_name
 
   # configuration {
   #   result_configuration {
@@ -310,7 +310,7 @@ data "aws_iam_policy_document" "glue_audit_policy" {
 }
 
 resource "aws_iam_policy" "glue_audit_policy" {
-  name        = var.glue.policy_name 
+  name        = var.glue.policy_name
   description = "S3 bucket audit policy for glue."
   policy      = data.aws_iam_policy_document.glue_audit_policy.json
 }
