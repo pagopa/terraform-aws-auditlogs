@@ -11,6 +11,7 @@
 | Name | Source | Version |
 |------|--------|---------|
 | <a name="module_s3_assets_bucket"></a> [s3\_assets\_bucket](#module\_s3\_assets\_bucket) | terraform-aws-modules/s3-bucket/aws | 4.1.1 |
+| <a name="module_s3_workgroup_name_bucket"></a> [s3\_workgroup\_name\_bucket](#module\_s3\_workgroup\_name\_bucket) | terraform-aws-modules/s3-bucket/aws | 4.1.1 |
 
 ## Resources
 

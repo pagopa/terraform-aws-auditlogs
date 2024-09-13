@@ -165,6 +165,17 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
   }
 }
 
+module "s3_workgroup_name_bucket" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "4.1.1"
+
+  bucket = var.athena.workgroup_name
+  acl    = "private"
+
+  control_object_ownership = true
+  object_ownership         = "ObjectWriter"
+}
+
 resource "aws_athena_workgroup" "this" {
   name = var.athena.workgroup_name
 
@@ -173,7 +184,7 @@ resource "aws_athena_workgroup" "this" {
     publish_cloudwatch_metrics_enabled = false
 
     result_configuration {
-      output_location = "s3://${module.s3_assets_bucket.s3_bucket_id}/athena-workgroup" # todo use another bucket
+      output_location = "s3://${module.s3_workgroup_name_bucket.s3_bucket_id}/query"
     }
   }
 }
