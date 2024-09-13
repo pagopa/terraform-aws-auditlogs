@@ -7,8 +7,7 @@ variable "tags" {
   type        = map(string)
   description = "Audit Log Solution"
   default = {
-    CreatedBy   = "Terraform"
-    Description = "Support Request with Stram Analytics and Immutability"
+    CreatedBy = "Terraform"
   }
 }
 

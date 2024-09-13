@@ -5,7 +5,7 @@ data "archive_file" "lambda" {
 }
 
 resource "aws_iam_role" "lambda" {
-  name = "${local.project}-auditlog-lambda-role"
+  name = "${local.project}-auditlogs-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -20,7 +20,7 @@ resource "aws_iam_role" "lambda" {
 }
 
 resource "aws_iam_policy" "lambda" {
-  name = "${local.project}-auditlog-lambda-policy"
+  name = "${local.project}-auditlogs-lambda-policy"
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -46,7 +46,7 @@ resource "aws_iam_role_policy_attachment" "lambda" {
 resource "aws_lambda_function" "lambda" {
   depends_on = [data.archive_file.lambda]
 
-  function_name = "${local.project}-auditlog-lambda"
+  function_name = "${local.project}-auditlogs-lambda"
   filename      = "./LogGenerator/lambda.zip"
   role          = aws_iam_role.lambda.arn
   handler       = "index.lambda_handler"
@@ -54,8 +54,8 @@ resource "aws_lambda_function" "lambda" {
   timeout       = 900
   environment {
     variables = {
-      log_group_name  = "${local.project}-auditlog-group"
-      log_stream_name = "${local.project}-auditlog-stream"
+      log_group_name  = "${local.project}-auditlogs-group"
+      log_stream_name = "${local.project}-auditlogs-stream"
       log_throuput    = "1000"
     }
   }
@@ -70,7 +70,7 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
 }
 
 resource "aws_cloudwatch_event_rule" "lambda" {
-  name                = "${local.project}-auditlog-rule"
+  name                = "${local.project}-auditlogs-rule"
   schedule_expression = "rate(1 minute)"
   is_enabled          = false
 }
