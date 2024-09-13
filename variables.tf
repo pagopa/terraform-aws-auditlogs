@@ -1,48 +1,46 @@
-variable "audit_crawler_schedule" {
-  type        = string
-  description = "A cron expression used to specify the schedule"
-  default     = "cron(0 5 * * ? *)"
-}
-
 variable "cloudwatch" {
   type = object({
-    log_group_name           = string,
-    log_stream_name          = string,
-    subscription_filter_name = string
-    filter_pattern           = string
-    role_name                = optional(string, "audit-logs-cloudwatch-kinesis-role"),
-    policy_name              = optional(string, "audit-logs-cloudwtach-kinesis-policy")
+    log_group_name           = optional(string, "auditlogs-log-group"),
+    log_stream_name          = optional(string, "auditlogs-log-stream"),
+    subscription_filter_name = optional(string, "auditlogs-subscription-filter"),
+    filter_pattern           = optional(string, "{ $.audit = \"true\" }", ),
+    role_name                = optional(string, "auditlogs-cloudwatch-kinesis-role"),
+    policy_name              = optional(string, "auditlogs-cloudwtach-kinesis-policy"),
   })
 }
 
-variable "s3_bucket_name" {
-  type = string
+variable "s3" {
+  type = object({
+    bucket_name = optional(string, "auditlogs-s3-bucket")
+  })
 }
 
-variable "athena_workgroup_name" {
-  type = string
+variable "athena" {
+  type = object({
+    workgroup_name = optional(string, "auditlogs-athena-workgroup")
+  })
 }
 
 variable "glue" {
   type = object({
-    crawler_name  = string,
-    database_name = string,
-    role_name     = optional(string, "audit-logs-glue-role"),
-    policy_name   = optional(string, "audit-logs-glue-policy")
+    crawler_name     = optional(string, "auditlogs-glue-crawler"),
+    crawler_schedule = optional(string, "cron(0 5 * * ? *)"),
+    database_name    = optional(string, "auditlogs-glue-database"),
+    role_name        = optional(string, "auditlogs-glue-role"),
+    policy_name      = optional(string, "auditlogs-glue-policy"),
   })
 }
 
-variable "kinesis_stream_name" {
-  type = string
+variable "kinesis" {
+  type = object({
+    stream_name = optional(string, "auditlogs-kinesis-stream")
+  })
 }
 
 variable "firehose" {
   type = object({
-    stream_name = string,
-    role_name   = optional(string, "audit-logs-firehose-role"),
-    policy_name = optional(string, "audit-logs-firehose-kinesis-policy")
+    delivery_stream_name = optional(string, "auditlogs-firehose-delivery-stream")
+    role_name            = optional(string, "auditlogs-firehose-role"),
+    policy_name          = optional(string, "auditlogs-firehose-kinesis-policy")
   })
 }
-
-
-

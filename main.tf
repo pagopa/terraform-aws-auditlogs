@@ -1,34 +1,6 @@
-data "aws_caller_identity" "current" {}
-
-
-# data "archive_file" "this" {
-#   type        = "zip"
-#   source_file = "./index.py"
-#   output_path = "./lambda.zip"
-# }
-
-resource "random_id" "unique" {
-  byte_length = 3
-}
-
-
-
-# locals {
-#   bucket_name = format("%s-%s", var.s3_bucket_name,
-#     random_integer.audit_bucket_suffix.result
-#   )
-#   athena_outputs = format("query-%s", var.s3_bucket_name)
-#   project = "auditLogs-es-d-${random_id.unique.hex}"
-# }
-
 resource "aws_cloudwatch_log_group" "this" {
-  name = var.cloudwatch.log_group_name
-
+  name              = var.cloudwatch.log_group_name
   retention_in_days = 14
-
-  tags = {
-    Name = "auditlogs"
-  }
 }
 
 resource "aws_cloudwatch_log_stream" "this" {
@@ -37,16 +9,12 @@ resource "aws_cloudwatch_log_stream" "this" {
 }
 
 resource "aws_kinesis_stream" "this" {
-  name             = var.kinesis_stream_name
+  name             = var.kinesis.stream_name
   shard_count      = 0
-  retention_period = 48
+  retention_period = 240
 
   stream_mode_details {
     stream_mode = "ON_DEMAND"
-  }
-
-  tags = {
-    Name = "auditlogs"
   }
 }
 
@@ -54,15 +22,11 @@ module "s3_assets_bucket" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "4.1.1"
 
-  bucket = var.s3_bucket_name
+  bucket = var.s3.bucket_name
   acl    = "private"
 
   control_object_ownership = true
   object_ownership         = "ObjectWriter"
-
-  tags = {
-    Name = "auditlogs"
-  }
 }
 
 resource "aws_iam_role" "cloudwatch_kinesis" {
@@ -109,11 +73,10 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_kinesis" {
 }
 
 resource "aws_cloudwatch_log_subscription_filter" "this" {
-  name           = var.cloudwatch.subscription_filter_name
-  role_arn       = aws_iam_role.cloudwatch_kinesis.arn
-  log_group_name = var.cloudwatch.log_group_name
-  filter_pattern = var.cloudwatch.filter_pattern
-  #"{ $.audit = \"true\" }"
+  name            = var.cloudwatch.subscription_filter_name
+  role_arn        = aws_iam_role.cloudwatch_kinesis.arn
+  log_group_name  = var.cloudwatch.log_group_name
+  filter_pattern  = var.cloudwatch.filter_pattern
   destination_arn = aws_kinesis_stream.this.arn
 }
 
@@ -170,10 +133,9 @@ resource "aws_iam_role_policy_attachment" "firehose_kinesis" {
 }
 
 
-resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
-  name        = var.firehose.stream_name
+resource "aws_kinesis_firehose_delivery_stream" "firehose" {
+  name        = var.firehose.delivery_stream_name
   destination = "extended_s3"
-
 
   extended_s3_configuration {
     role_arn            = aws_iam_role.firehose.arn
@@ -201,87 +163,11 @@ resource "aws_kinesis_firehose_delivery_stream" "demo_delivery_stream" {
     kinesis_stream_arn = aws_kinesis_stream.this.arn
     role_arn           = aws_iam_role.firehose.arn
   }
-
-  tags = {
-    Product = "Demo"
-  }
 }
 
-# resource "aws_iam_role" "lambda" {
-#   name = var.lambda.role_name
-
-#   assume_role_policy = jsonencode({
-#     Version = "2012-10-17",
-#     Statement = [{
-#       Effect = "Allow",
-#       Principal = {
-#         Service = "lambda.amazonaws.com"
-#       },
-#       Action = ["sts:AssumeRole"]
-#     }]
-#   })
-# }
-
-# resource "aws_iam_policy" "lambda" {
-#   name = var.lambda.policy_name
-
-#   policy = jsonencode({
-#     Version = "2012-10-17",
-#     Statement = [
-#       {
-#         Action = [
-#           "logs:CreateLogStream",
-#           "logs:CreateLogGroup",
-#           "logs:PutLogEvents"
-#         ],
-#         Effect   = "Allow",
-#         Resource = "arn:aws:logs:*:*:*"
-#       }
-#     ]
-#   })
-# }
-
-# resource "aws_iam_role_policy_attachment" "function_logging_policy_attachment" {
-#   role       = aws_iam_role.lambda.id
-#   policy_arn = aws_iam_policy.lambda.arn
-# }
-
-# resource "aws_lambda_function" "lambda_function" {
-#   filename      = "./lambda.zip"
-#   function_name = "test_lambda_logs"
-#   role          = aws_iam_role.lambda.arn
-#   handler       = "index.lambda_handler"
-#   depends_on    = [aws_cloudwatch_log_group.this]
-#   runtime       = "python3.12"
-#   environment {
-#     variables = {
-#       log_group_name  = "${aws_cloudwatch_log_group.this.name}"
-#       log_stream_name = "${aws_cloudwatch_log_stream.this.name}"
-#     }
-#   }
-# }
-
-# module "s3_athena_output_bucket" {
-#   source  = "terraform-aws-modules/s3-bucket/aws"
-#   version = "4.1.1"
-
-#   bucket = var.athena_output
-#   acl    = "private"
-
-#   control_object_ownership = true
-#   object_ownership         = "ObjectWriter"
-# }
-
-resource "aws_athena_workgroup" "audit_workgroup" {
-  name = var.athena_workgroup_name
-
-  # configuration {
-  #   result_configuration {
-  #     output_location = "s3://${var.athena_output}/output/"
-  #   }
-  # }
+resource "aws_athena_workgroup" "this" {
+  name = var.athena.workgroup_name
 }
-
 
 data "aws_iam_policy_document" "glue_assume_role_policy" {
   statement {
@@ -340,7 +226,7 @@ resource "aws_glue_crawler" "audit" {
   role          = aws_iam_role.glue_audit.arn
 
   description = "Crawler for the audit bucket"
-  schedule    = var.audit_crawler_schedule
+  schedule    = var.glue.crawler_schedule
   configuration = jsonencode(
     {
       Grouping = {

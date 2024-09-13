@@ -1,38 +1,11 @@
-data "archive_file" "this" {
+data "archive_file" "lambda" {
   type        = "zip"
   source_file = "./LogGenerator/index.py"
   output_path = "./LogGenerator/lambda.zip"
 }
 
-# resource "aws_cloudwatch_log_group" "this" {
-#   name = "${local.project}-log-group"
-
-#   retention_in_days = 14
-
-#   tags = {
-#     Name = "auditlogs"
-#   }
-# }
-
-# resource "aws_cloudwatch_log_stream" "this" {
-#   name           = "${local.project}-log-stream"
-#   log_group_name = aws_cloudwatch_log_group.this.name
-# }
-
-resource "aws_cloudwatch_event_rule" "this" {
-  name = "${local.project}-audit-rule"
-
-  schedule_expression = "rate(1 minute)"
-}
-
-resource "aws_cloudwatch_event_target" "this" {
-  rule      = aws_cloudwatch_event_rule.this.name
-  target_id = "TriggerLambda"
-  arn       = aws_lambda_function.lambda_function.arn
-}
-
 resource "aws_iam_role" "lambda" {
-  name = var.lambda.role_name
+  name = "${local.project}-auditlog-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -47,7 +20,7 @@ resource "aws_iam_role" "lambda" {
 }
 
 resource "aws_iam_policy" "lambda" {
-  name = var.lambda.policy_name
+  name = "${local.project}-auditlog-lambda-policy"
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -65,23 +38,25 @@ resource "aws_iam_policy" "lambda" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "function_logging_policy_attachment" {
+resource "aws_iam_role_policy_attachment" "lambda" {
   role       = aws_iam_role.lambda.id
   policy_arn = aws_iam_policy.lambda.arn
 }
 
-resource "aws_lambda_function" "lambda_function" {
-  filename      = "./lambda.zip"
-  function_name = "test_lambda_logs"
+resource "aws_lambda_function" "lambda" {
+  depends_on = [data.archive_file.lambda]
+
+  function_name = "${local.project}-auditlog-lambda"
+  filename      = "./LogGenerator/lambda.zip"
   role          = aws_iam_role.lambda.arn
   handler       = "index.lambda_handler"
   runtime       = "python3.12"
   timeout       = 900
   environment {
     variables = {
-      log_group_name  = "${local.log_group_name}"
-      log_stream_name = "${local.log_stream_name}"
-      log_throuput    = "${local.log_throuput}"
+      log_group_name  = "${local.project}-auditlog-group"
+      log_stream_name = "${local.project}-auditlog-stream"
+      log_throuput    = "1000"
     }
   }
 }
@@ -89,7 +64,19 @@ resource "aws_lambda_function" "lambda_function" {
 resource "aws_lambda_permission" "allow_cloudwatch" {
   statement_id  = "AWSEvents_trigger-lambda"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.lambda_function.function_name
+  function_name = aws_lambda_function.lambda.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.this.arn
+  source_arn    = aws_cloudwatch_event_rule.lambda.arn
+}
+
+resource "aws_cloudwatch_event_rule" "lambda" {
+  name                = "${local.project}-auditlog-rule"
+  schedule_expression = "rate(1 minute)"
+  is_enabled          = false
+}
+
+resource "aws_cloudwatch_event_target" "lambda" {
+  rule      = aws_cloudwatch_event_rule.lambda.name
+  target_id = "TriggerLambda"
+  arn       = aws_lambda_function.lambda.arn
 }

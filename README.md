@@ -16,7 +16,7 @@
 
 | Name | Type |
 |------|------|
-| [aws_athena_workgroup.audit_workgroup](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/athena_workgroup) | resource |
+| [aws_athena_workgroup.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/athena_workgroup) | resource |
 | [aws_cloudwatch_log_group.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) | resource |
 | [aws_cloudwatch_log_stream.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_stream) | resource |
 | [aws_cloudwatch_log_subscription_filter.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_subscription_filter) | resource |
@@ -31,10 +31,8 @@
 | [aws_iam_role_policy_attachment.cloudwatch_kinesis](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_iam_role_policy_attachment.firehose_kinesis](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_iam_role_policy_attachment.glue_s3_audit_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
-| [aws_kinesis_firehose_delivery_stream.demo_delivery_stream](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream) | resource |
+| [aws_kinesis_firehose_delivery_stream.firehose](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream) | resource |
 | [aws_kinesis_stream.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_stream) | resource |
-| [random_id.unique](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/id) | resource |
-| [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 | [aws_iam_policy_document.glue_assume_role_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.glue_audit_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 
@@ -42,13 +40,12 @@
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_athena_workgroup_name"></a> [athena\_workgroup\_name](#input\_athena\_workgroup\_name) | n/a | `string` | n/a | yes |
-| <a name="input_audit_crawler_schedule"></a> [audit\_crawler\_schedule](#input\_audit\_crawler\_schedule) | A cron expression used to specify the schedule | `string` | `"cron(0 5 * * ? *)"` | no |
-| <a name="input_cloudwatch"></a> [cloudwatch](#input\_cloudwatch) | n/a | <pre>object({<br>    log_group_name           = string,<br>    log_stream_name          = string,<br>    subscription_filter_name = string<br>    filter_pattern           = string<br>    role_name                = optional(string, "audit-logs-cloudwatch-kinesis-role"),<br>    policy_name              = optional(string, "audit-logs-cloudwtach-kinesis-policy")<br>  })</pre> | n/a | yes |
-| <a name="input_firehose"></a> [firehose](#input\_firehose) | n/a | <pre>object({<br>    stream_name = string,<br>    role_name   = optional(string, "audit-logs-firehose-role"),<br>    policy_name = optional(string, "audit-logs-firehose-kinesis-policy")<br>  })</pre> | n/a | yes |
-| <a name="input_glue"></a> [glue](#input\_glue) | n/a | <pre>object({<br>    crawler_name  = string,<br>    database_name = string,<br>    role_name     = optional(string, "audit-logs-glue-role"),<br>    policy_name   = optional(string, "audit-logs-glue-policy")<br>  })</pre> | n/a | yes |
-| <a name="input_kinesis_stream_name"></a> [kinesis\_stream\_name](#input\_kinesis\_stream\_name) | n/a | `string` | n/a | yes |
-| <a name="input_s3_bucket_name"></a> [s3\_bucket\_name](#input\_s3\_bucket\_name) | n/a | `string` | n/a | yes |
+| <a name="input_athena"></a> [athena](#input\_athena) | n/a | <pre>object({<br>    workgroup_name = optional(string, "auditlogs-athena-workgroup")<br>  })</pre> | n/a | yes |
+| <a name="input_cloudwatch"></a> [cloudwatch](#input\_cloudwatch) | n/a | <pre>object({<br>    log_group_name           = optional(string, "auditlogs-log-group"),<br>    log_stream_name          = optional(string, "auditlogs-log-stream"),<br>    subscription_filter_name = optional(string, "auditlogs-subscription-filter"),<br>    filter_pattern           = optional(string, "{ $.audit = \"true\" }", ),<br>    role_name                = optional(string, "auditlogs-cloudwatch-kinesis-role"),<br>    policy_name              = optional(string, "auditlogs-cloudwtach-kinesis-policy"),<br>  })</pre> | n/a | yes |
+| <a name="input_firehose"></a> [firehose](#input\_firehose) | n/a | <pre>object({<br>    delivery_stream_name = optional(string, "auditlogs-firehose-delivery-stream")<br>    role_name            = optional(string, "auditlogs-firehose-role"),<br>    policy_name          = optional(string, "auditlogs-firehose-kinesis-policy")<br>  })</pre> | n/a | yes |
+| <a name="input_glue"></a> [glue](#input\_glue) | n/a | <pre>object({<br>    crawler_name     = optional(string, "auditlogs-glue-crawler"),<br>    crawler_schedule = optional(string, "cron(0 5 * * ? *)"),<br>    database_name    = optional(string, "auditlogs-glue-database"),<br>    role_name        = optional(string, "auditlogs-glue-role"),<br>    policy_name      = optional(string, "auditlogs-glue-policy"),<br>  })</pre> | n/a | yes |
+| <a name="input_kinesis"></a> [kinesis](#input\_kinesis) | n/a | <pre>object({<br>    stream_name = optional(string, "auditlogs-kinesis-stream")<br>  })</pre> | n/a | yes |
+| <a name="input_s3"></a> [s3](#input\_s3) | n/a | <pre>object({<br>    bucket_name = optional(string, "auditlogs-s3-bucket")<br>  })</pre> | n/a | yes |
 
 ## Outputs
 

@@ -7,6 +7,13 @@ terraform {
       version = "~> 5.65.0"
     }
   }
+
+  backend "s3" {
+    bucket         = "terraform-backend-20230207141844477000000001"
+    key            = "auditlogs/main/tfstate"
+    region         = "eu-south-1"
+    dynamodb_table = "terraform-lock"
+  }
 }
 
 provider "aws" {
@@ -21,8 +28,5 @@ resource "random_id" "unique" {
 }
 
 locals {
-  project         = "${var.prefix}-${random_id.unique.hex}"
-  log_group_name  = "${local.project}-audit-log-group"
-  log_stream_name = "${local.project}-audit-log-stream"
-  log_throuput    = 1000
+  project = "${var.prefix}-${random_id.unique.hex}"
 }
