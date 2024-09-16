@@ -1,204 +1,265 @@
-resource "azurerm_log_analytics_data_export_rule" "this" {
-  for_each = toset(var.log_analytics_workspace.export_tables)
-
-  name                    = each.value
-  resource_group_name     = var.resource_group_name
-  workspace_resource_id   = var.log_analytics_workspace.id
-  destination_resource_id = azurerm_eventhub.this.id
-  table_names             = [each.value]
-  enabled                 = true
+resource "aws_cloudwatch_log_group" "this" {
+  name              = var.cloudwatch.log_group_name
+  retention_in_days = 14
 }
 
-resource "azurerm_eventhub_namespace" "this" {
-  name                     = var.event_hub.namespace_name
-  location                 = var.location
-  resource_group_name      = var.resource_group_name
-  sku                      = "Standard"
-  auto_inflate_enabled     = true
-  maximum_throughput_units = var.event_hub.maximum_throughput_units
-  zone_redundant           = true
+resource "aws_cloudwatch_log_stream" "this" {
+  name           = var.cloudwatch.log_stream_name
+  log_group_name = aws_cloudwatch_log_group.this.name
+}
 
-  tags = var.tags
+resource "aws_kinesis_stream" "this" {
+  name             = var.kinesis.stream_name
+  shard_count      = 0
+  retention_period = 240
 
-  lifecycle {
-    ignore_changes = [
-      capacity,
-    ]
+  stream_mode_details {
+    stream_mode = "ON_DEMAND"
   }
 }
 
-resource "azurerm_eventhub" "this" {
-  name                = "audit-logs"
-  namespace_name      = azurerm_eventhub_namespace.this.name
-  resource_group_name = var.resource_group_name
-  partition_count     = 32
-  message_retention   = 7
+module "s3_assets_bucket" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "4.1.1"
+
+  bucket = var.s3.bucket_name
+  acl    = "private"
+
+  control_object_ownership = true
+  object_ownership         = "ObjectWriter"
 }
 
-resource "azurerm_storage_account" "this" {
-  name                             = var.storage_account.name
-  resource_group_name              = var.resource_group_name
-  location                         = var.location
-  account_replication_type         = var.storage_account.account_replication_type
-  account_tier                     = "Standard"
-  access_tier                      = var.storage_account.access_tier
-  allow_nested_items_to_be_public  = false
-  cross_tenant_replication_enabled = false
+resource "aws_iam_role" "cloudwatch_kinesis" {
+  name = var.cloudwatch.role_name
 
-  dynamic "immutability_policy" {
-    for_each = var.storage_account.immutability_policy_enabled ? ["enabled"] : []
-    content {
-      allow_protected_append_writes = true
-      period_since_creation_in_days = var.storage_account.immutability_policy_retention_days
-      state                         = "Unlocked"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = ["sts:AssumeRole"],
+        Principal = {
+          Service = "logs.amazonaws.com"
+        },
+        Effect = "Allow",
+        Sid    = ""
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "cloudwatch_kinesis" {
+  name_prefix = var.cloudwatch.policy_name
+
+  policy = jsonencode({
+
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "",
+        Effect = "Allow",
+        Action = [
+          "kinesis:PutRecord",
+          "kinesis:PutRecords"
+        ],
+        Resource = "${aws_kinesis_stream.this.arn}"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch_kinesis" {
+  role       = aws_iam_role.cloudwatch_kinesis.name
+  policy_arn = aws_iam_policy.cloudwatch_kinesis.arn
+}
+
+resource "aws_cloudwatch_log_subscription_filter" "this" {
+  name            = var.cloudwatch.subscription_filter_name
+  role_arn        = aws_iam_role.cloudwatch_kinesis.arn
+  log_group_name  = var.cloudwatch.log_group_name
+  filter_pattern  = var.cloudwatch.filter_pattern
+  destination_arn = aws_kinesis_stream.this.arn
+}
+
+resource "aws_iam_role" "firehose" {
+  name = var.firehose.role_name
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = ["sts:AssumeRole"],
+        Principal = {
+          "Service" : "firehose.amazonaws.com"
+        },
+        Effect = "Allow",
+        Sid    = ""
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "firehose_kinesis" {
+  name_prefix = var.firehose.policy_name
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "",
+        Effect = "Allow",
+        Action = [
+          "kinesis:DescribeStream",
+          "kinesis:GetShardIterator",
+          "kinesis:GetRecords",
+          "kinesis:ListShards",
+          "kinesis:ListStreams"
+        ],
+        Resource = "${aws_kinesis_stream.this.arn}"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:PutObject"
+        ],
+        Resource = "${module.s3_assets_bucket.s3_bucket_arn}/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "firehose_kinesis" {
+  role       = var.firehose.role_name
+  policy_arn = aws_iam_policy.firehose_kinesis.arn
+}
+
+
+resource "aws_kinesis_firehose_delivery_stream" "firehose" {
+  name        = var.firehose.delivery_stream_name
+  destination = "extended_s3"
+
+  extended_s3_configuration {
+    role_arn            = aws_iam_role.firehose.arn
+    bucket_arn          = module.s3_assets_bucket.s3_bucket_arn
+    prefix              = "logs/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"
+    error_output_prefix = "errors/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/!{firehose:error-output-type}/"
+
+    processing_configuration {
+      enabled = "true"
+      processors {
+        type = "Decompression"
+        parameters {
+          parameter_name  = "CompressionFormat"
+          parameter_value = "GZIP"
+        }
+      }
+      processors {
+        type = "AppendDelimiterToRecord"
+      }
+    }
+    file_extension = ".json"
+  }
+
+  kinesis_source_configuration {
+    kinesis_stream_arn = aws_kinesis_stream.this.arn
+    role_arn           = aws_iam_role.firehose.arn
+  }
+}
+
+module "s3_workgroup_name_bucket" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "4.1.1"
+
+  bucket = var.athena.workgroup_name
+  acl    = "private"
+
+  control_object_ownership = true
+  object_ownership         = "ObjectWriter"
+}
+
+resource "aws_athena_workgroup" "this" {
+  name = var.athena.workgroup_name
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    publish_cloudwatch_metrics_enabled = false
+
+    result_configuration {
+      output_location = "s3://${module.s3_workgroup_name_bucket.s3_bucket_id}/query"
     }
   }
-
-  blob_properties {
-    versioning_enabled = true
-  }
-
-  tags = var.tags
 }
 
-resource "azurerm_storage_container" "this" {
-  name                  = "audit-logs"
-  storage_account_name  = azurerm_storage_account.this.name
-  container_access_type = "private"
+data "aws_iam_policy_document" "glue_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["glue.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "glue_audit" {
+  name               = var.glue.role_name
+  assume_role_policy = data.aws_iam_policy_document.glue_assume_role_policy.json
+  path               = "/service-role/"
+}
+
+data "aws_iam_policy_document" "glue_audit_policy" {
+  statement {
+    sid       = "S3ReadAndWrite"
+    effect    = "Allow"
+    resources = ["arn:aws:s3:::${module.s3_assets_bucket.s3_bucket_id}/*"]
+    actions   = ["s3:GetObject", "s3:PutObject"]
+  }
+}
+
+resource "aws_iam_policy" "glue_audit_policy" {
+  name        = var.glue.policy_name
+  description = "S3 bucket audit policy for glue."
+  policy      = data.aws_iam_policy_document.glue_audit_policy.json
 }
 
 locals {
-  stream_analytics_job = {
-    input_name  = "audit-logs-input"
-    output_name = "audit-logs-output"
-  }
+  glue_audit_policy = [
+    "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole",
+    aws_iam_policy.glue_audit_policy.arn,
+  ]
 }
 
-resource "azurerm_stream_analytics_job" "this" {
-  name                                     = var.stream_analytics_job.name
-  resource_group_name                      = var.resource_group_name
-  location                                 = var.location
-  sku_name                                 = "StandardV2"
-  compatibility_level                      = "1.2"
-  data_locale                              = "en-US"
-  events_late_arrival_max_delay_in_seconds = 5
-  events_out_of_order_max_delay_in_seconds = 5
-  events_out_of_order_policy               = "Adjust"
-  output_error_policy                      = "Stop"
-  streaming_units                          = var.stream_analytics_job.streaming_units
-  identity {
-    type = "SystemAssigned"
-  }
+resource "aws_iam_role_policy_attachment" "glue_s3_audit_policy" {
+  count      = length(local.glue_audit_policy)
+  role       = aws_iam_role.glue_audit.name
+  policy_arn = local.glue_audit_policy[count.index]
 
-  transformation_query = templatefile("${path.module}/${var.stream_analytics_job.transformation_query}", {
-    input_name  = local.stream_analytics_job.input_name,
-    output_name = local.stream_analytics_job.output_name,
+}
+
+resource "aws_glue_catalog_database" "audit" {
+  name = var.glue.database_name
+}
+
+#Check multiple tables creation
+resource "aws_glue_crawler" "audit" {
+  database_name = var.glue.database_name
+  name          = var.glue.crawler_name
+  role          = aws_iam_role.glue_audit.arn
+
+  description = "Crawler for the audit bucket"
+  schedule    = var.glue.crawler_schedule
+  configuration = jsonencode(
+    {
+      Grouping = {
+        TableGroupingPolicy = "CombineCompatibleSchemas",
+      }
+      CrawlerOutput = {
+        Partitions = { AddOrUpdateBehavior = "InheritFromTable" }
+      }
+      Version = 1
     }
   )
 
-  tags = var.tags
-}
-
-resource "azurerm_eventhub_consumer_group" "this" {
-  name                = "audit-logs-consumer-group"
-  namespace_name      = azurerm_eventhub_namespace.this.name
-  eventhub_name       = azurerm_eventhub.this.name
-  resource_group_name = var.resource_group_name
-}
-
-resource "azurerm_stream_analytics_stream_input_eventhub" "this" {
-  name                         = local.stream_analytics_job.input_name
-  stream_analytics_job_name    = azurerm_stream_analytics_job.this.name
-  resource_group_name          = var.resource_group_name
-  eventhub_consumer_group_name = azurerm_eventhub_consumer_group.this.name
-  eventhub_name                = azurerm_eventhub.this.name
-  servicebus_namespace         = azurerm_eventhub_namespace.this.name
-  authentication_mode          = "Msi"
-
-  serialization {
-    type     = "Json"
-    encoding = "UTF8"
+  s3_target {
+    path = "s3://${module.s3_assets_bucket.s3_bucket_id}/logs"
   }
-}
-
-resource "azurerm_stream_analytics_output_blob" "this" {
-  name                      = local.stream_analytics_job.output_name
-  stream_analytics_job_name = azurerm_stream_analytics_job.this.name
-  resource_group_name       = var.resource_group_name
-  storage_account_name      = azurerm_storage_account.this.name
-  storage_container_name    = azurerm_storage_container.this.name
-  path_pattern              = "${azurerm_storage_container.this.name}/{date}/{datetime:HH}/{datetime:mm}"
-  date_format               = "yyyy-MM-dd"
-  time_format               = "HH"
-  authentication_mode       = "Msi"
-  serialization {
-    type     = "Json"
-    encoding = "UTF8"
-    format   = "LineSeparated"
-  }
-}
-
-resource "azurerm_stream_analytics_job_schedule" "this" {
-  stream_analytics_job_id = azurerm_stream_analytics_job.this.id
-  start_mode              = "JobStartTime"
-
-  depends_on = [
-    azurerm_stream_analytics_stream_input_eventhub.this,
-    azurerm_stream_analytics_output_blob.this,
-    azurerm_role_assignment.stream_analytics_azure_event_hubs_data_receiver,
-    azurerm_role_assignment.stream_analytics_storage_blob_contributor,
-  ]
-
-  lifecycle {
-    ignore_changes = [
-      start_mode
-    ]
-  }
-}
-
-resource "azurerm_role_assignment" "stream_analytics_azure_event_hubs_data_receiver" {
-  scope                = azurerm_eventhub_namespace.this.id
-  role_definition_name = "Azure Event Hubs Data Receiver"
-  principal_id         = azurerm_stream_analytics_job.this.identity.0.principal_id
-}
-
-resource "azurerm_role_assignment" "stream_analytics_storage_blob_contributor" {
-  scope                = azurerm_storage_account.this.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_stream_analytics_job.this.identity.0.principal_id
-}
-
-resource "azurerm_kusto_cluster" "this" {
-  name                = var.data_explorer.name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-
-  sku {
-    name     = var.data_explorer.sku_name
-    capacity = var.data_explorer.sku_capacity
-  }
-
-  identity {
-    type = "SystemAssigned"
-  }
-
-  zones = ["1", "2", "3"]
-
-  tags = var.tags
-}
-
-resource "azurerm_role_assignment" "kusto_cluster_blob_reader" {
-  scope                = azurerm_storage_account.this.id
-  role_definition_name = "Storage Blob Data Reader"
-  principal_id         = azurerm_kusto_cluster.this.identity.0.principal_id
-}
-
-resource "azurerm_kusto_database" "this" {
-  name                = "audit-logs"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  cluster_name        = azurerm_kusto_cluster.this.name
-
-  hot_cache_period   = "P7D"
-  soft_delete_period = "P30D"
 }

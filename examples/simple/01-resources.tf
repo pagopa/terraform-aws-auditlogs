@@ -1,60 +1,39 @@
-resource "azurerm_resource_group" "rg" {
-  name     = "${local.project}-rg"
-  location = var.location
+module "aws_auditlogs" {
+  source = "../.."
 
-  tags = var.tags
-}
-
-resource "azurerm_log_analytics_workspace" "this" {
-  name                = "${local.project}-log"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
-  sku                 = "PerGB2018"
-
-  tags = var.tags
-}
-
-resource "azurerm_application_insights" "this" {
-  name                = "${local.project}-appi"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
-  application_type    = "web"
-  workspace_id        = azurerm_log_analytics_workspace.this.id
-
-  tags = var.tags
-}
-
-module "azure_auditlogs" {
-  source              = "../.."
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = var.location
-
-  storage_account = {
-    name                               = replace("${local.project}st", "-", ""),
-    immutability_policy_enabled        = false,
-    immutability_policy_retention_days = 1,
+  cloudwatch = {
+    filter_pattern           = "{ $.audit = \"true\" }",
+    log_group_name           = "${local.project}-auditlogs-group",               # Optional
+    log_stream_name          = "${local.project}-auditlogs-stream",              # Optional
+    subscription_filter_name = "${local.project}-auditlogs-subscription-filter", # Optional
+    role_name                = "${local.project}-cloudwatch-kinesis-role",       # Optional
+    policy_name              = "${local.project}-cloudwtach-kinesis-policy",     # Optional
   }
 
-  event_hub = {
-    namespace_name           = "${local.project}-evhns",
-    maximum_throughput_units = 1
+  s3 = {
+    bucket_name = "${local.project}-auditlogs-s3-bucket" # Optional
   }
 
-  log_analytics_workspace = {
-    id            = azurerm_log_analytics_workspace.this.id,
-    export_tables = ["AppEvents"],
+  athena = {
+    workgroup_name = "${local.project}-auditlogs-athena-workgroup" # Optional
   }
 
-  stream_analytics_job = {
-    name            = "${local.project}-job"
-    streaming_units = 3
+  glue = {
+    crawler_name     = "${local.project}-auditlogs-glue-crawler", # Optional
+    crawler_schedule = "cron(0 5 * * ? *)",
+    database_name    = "${local.project}-auditlogs-glue-database" # Optional
+    role_name        = "${local.project}-auditlogs-glue-role",    # Optional
+    policy_name      = "${local.project}-auditlogs-glue-policy",  # Optional
   }
 
-  data_explorer = {
-    name         = "${local.project}-dec",
-    sku_name     = "Dev(No SLA)_Standard_E2a_v4",
-    sku_capacity = 1,
+  kinesis = {
+    stream_name = "${local.project}-auditlogs-kinesis-stream" # Optional
   }
 
-  tags = var.tags
+  firehose = {
+    stream_name          = "${local.project}-auditlogs-firehose-stream", # Optional
+    delivery_stream_name = "${local.project}-firehose-delivery-stream",  # Optional
+    role_name            = "${local.project}-firehose-role",             # Optional
+    policy_name          = "${local.project}-firehose-kinesis-policy",   # Optional
+  }
 }

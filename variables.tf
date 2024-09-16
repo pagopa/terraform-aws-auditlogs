@@ -1,58 +1,46 @@
-variable "location" {
-  type        = string
-  description = "Specifies the supported Azure location where the resource exists. Changing this forces a new resource to be created."
-}
-
-// Resource Group
-variable "resource_group_name" {
-  type        = string
-  description = "The name of the resource group "
-}
-
-variable "log_analytics_workspace" {
+variable "cloudwatch" {
   type = object({
-    id            = string,
-    export_tables = list(string),
+    log_group_name           = optional(string, "auditlogs-log-group"),
+    log_stream_name          = optional(string, "auditlogs-log-stream"),
+    subscription_filter_name = optional(string, "auditlogs-subscription-filter"),
+    filter_pattern           = optional(string, "{ $.audit = \"true\" }", ),
+    role_name                = optional(string, "auditlogs-cloudwatch-kinesis-role"),
+    policy_name              = optional(string, "auditlogs-cloudwtach-kinesis-policy"),
   })
 }
 
-variable "event_hub" {
+variable "s3" {
   type = object({
-    namespace_name           = string,
-    maximum_throughput_units = number,
+    bucket_name = optional(string, "auditlogs-s3-bucket")
   })
 }
 
-variable "storage_account" {
+variable "athena" {
   type = object({
-    name                               = string,
-    account_replication_type           = optional(string, "ZRS"),
-    access_tier                        = optional(string, "Hot"),
-    immutability_policy_enabled        = bool,
-    immutability_policy_retention_days = number,
-  })
-  validation {
-    condition     = var.storage_account.account_replication_type != "ZRS" || var.storage_account.account_replication_type != "GZRS"
-    error_message = "account_replication_type must be ZRS or GZRS"
-  }
-}
-
-variable "stream_analytics_job" {
-  type = object({
-    name                 = string,
-    streaming_units      = number,
-    transformation_query = optional(string, "transformation_query.sql"),
+    workgroup_name = optional(string, "auditlogs-athena-workgroup")
   })
 }
 
-variable "data_explorer" {
+variable "glue" {
   type = object({
-    name         = string,
-    sku_name     = string,
-    sku_capacity = number,
+    crawler_name     = optional(string, "auditlogs-glue-crawler"),
+    crawler_schedule = optional(string, "cron(0 5 * * ? *)"),
+    database_name    = optional(string, "auditlogs-glue-database"),
+    role_name        = optional(string, "auditlogs-glue-role"),
+    policy_name      = optional(string, "auditlogs-glue-policy"),
   })
 }
 
-variable "tags" {
-  type = map(any)
+variable "kinesis" {
+  type = object({
+    stream_name = optional(string, "auditlogs-kinesis-stream")
+  })
+}
+
+variable "firehose" {
+  type = object({
+    delivery_stream_name = optional(string, "auditlogs-firehose-delivery-stream")
+    role_name            = optional(string, "auditlogs-firehose-role"),
+    policy_name          = optional(string, "auditlogs-firehose-kinesis-policy")
+  })
 }
