@@ -27,12 +27,13 @@ module "s3_assets_bucket" {
   versioning = {
     enabled = true
   }
-  object_lock_enabled = false
+  object_lock_enabled      = var.s3.object_lock_enabled
   control_object_ownership = true
   object_ownership         = "ObjectWriter"
 }
 
 resource "aws_s3_bucket_object_lock_configuration" "this" {
+  count = var.s3.object_lock_enabled ? 1 : 0
   bucket = module.s3_assets_bucket.s3_bucket_id
 
   rule {
@@ -44,6 +45,7 @@ resource "aws_s3_bucket_object_lock_configuration" "this" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
+  count = var.s3.object_lock_enabled ? 1 : 0
   bucket = module.s3_assets_bucket.s3_bucket_id
 
   rule {

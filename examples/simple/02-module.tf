@@ -11,7 +11,8 @@ module "aws_auditlogs" {
   }
 
   s3 = {
-    bucket_name = "${local.project}-auditlogs-s3-bucket" # Optional
+    bucket_name         = "${local.project}-auditlogs-s3-bucket" # Optional
+    object_lock_enabled = false
   }
 
   athena = {
