@@ -24,9 +24,40 @@ module "s3_assets_bucket" {
 
   bucket = var.s3.bucket_name
   acl    = "private"
-
+  versioning = {
+    enabled = true
+  }
+  object_lock_enabled      = var.s3.object_lock_enabled
   control_object_ownership = true
   object_ownership         = "ObjectWriter"
+}
+
+resource "aws_s3_bucket_object_lock_configuration" "this" {
+  count = var.s3.object_lock_enabled ? 1 : 0
+  bucket = module.s3_assets_bucket.s3_bucket_id
+
+  rule {
+    default_retention {
+      mode = "COMPLIANCE"
+      days = var.s3.retention_days
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "this" {
+  count = var.s3.object_lock_enabled ? 1 : 0
+  bucket = module.s3_assets_bucket.s3_bucket_id
+
+  rule {
+    id = "delete-logs"
+    status = "Enabled"
+     filter {
+       prefix = "logs/"
+     }
+     expiration {
+       days = var.s3.retention_days+7
+     }
+  }
 }
 
 resource "aws_iam_role" "cloudwatch_kinesis" {
