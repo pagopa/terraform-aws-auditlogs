@@ -49,7 +49,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
   bucket = module.s3_assets_bucket.s3_bucket_id
 
   rule {
-    id = "deleteLogsAfter1Week"
+    id = "delete-logs"
     status = "Enabled"
      filter {
        prefix = "logs/"
