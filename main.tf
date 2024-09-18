@@ -39,7 +39,7 @@ resource "aws_s3_bucket_object_lock_configuration" "this" {
   rule {
     default_retention {
       mode = "COMPLIANCE"
-      days = 1
+      days = var.s3.retention_days
     }
   }
 }
@@ -49,13 +49,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
   bucket = module.s3_assets_bucket.s3_bucket_id
 
   rule {
-    id = "delete logs after 1 week"
+    id = "deleteLogsAfter1Week"
     status = "Enabled"
      filter {
        prefix = "logs/"
      }
      expiration {
-       days = 3
+       days = var.s3.retention_days+7
      }
   }
 }

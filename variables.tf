@@ -12,7 +12,8 @@ variable "cloudwatch" {
 variable "s3" {
   type = object({
     bucket_name         = optional(string, "auditlogs-s3-bucket")
-    object_lock_enabled = optional(bool, false)
+    object_lock_enabled = bool
+    retention_days      = number
   })
 }
 
