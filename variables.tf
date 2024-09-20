@@ -6,6 +6,11 @@ variable "cloudwatch" {
     filter_pattern           = optional(string, "{ $.audit = \"true\" }", ),
     role_name                = optional(string, "auditlogs-cloudwatch-kinesis-role"),
     policy_name              = optional(string, "auditlogs-cloudwtach-kinesis-policy"),
+    additional_log_groups = optional(map(object({
+      log_group_name           = string
+      filter_pattern           = string
+      subscription_filter_name = string
+    })), {})
   })
 }
 

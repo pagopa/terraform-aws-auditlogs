@@ -33,7 +33,7 @@ module "s3_assets_bucket" {
 }
 
 resource "aws_s3_bucket_object_lock_configuration" "this" {
-  count = var.s3.object_lock_enabled ? 1 : 0
+  count  = var.s3.object_lock_enabled ? 1 : 0
   bucket = module.s3_assets_bucket.s3_bucket_id
 
   rule {
@@ -45,18 +45,18 @@ resource "aws_s3_bucket_object_lock_configuration" "this" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
-  count = var.s3.object_lock_enabled ? 1 : 0
+  count  = var.s3.object_lock_enabled ? 1 : 0
   bucket = module.s3_assets_bucket.s3_bucket_id
 
   rule {
-    id = "deleteLogsAfter1Week"
+    id     = "deleteLogsAfter1Week"
     status = "Enabled"
-     filter {
-       prefix = "logs/"
-     }
-     expiration {
-       days = var.s3.retention_days+7
-     }
+    filter {
+      prefix = "logs/"
+    }
+    expiration {
+      days = var.s3.retention_days + 7
+    }
   }
 }
 
@@ -108,6 +108,15 @@ resource "aws_cloudwatch_log_subscription_filter" "this" {
   role_arn        = aws_iam_role.cloudwatch_kinesis.arn
   log_group_name  = var.cloudwatch.log_group_name
   filter_pattern  = var.cloudwatch.filter_pattern
+  destination_arn = aws_kinesis_stream.this.arn
+}
+
+resource "aws_cloudwatch_log_subscription_filter" "additional" {
+  for_each        = var.cloudwatch.additional_log_groups
+  name            = each.value.subscription_filter_name
+  role_arn        = aws_iam_role.cloudwatch_kinesis.arn
+  log_group_name  = each.value.log_group_name
+  filter_pattern  = each.value.filter_pattern
   destination_arn = aws_kinesis_stream.this.arn
 }
 
