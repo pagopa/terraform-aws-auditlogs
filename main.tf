@@ -111,6 +111,16 @@ resource "aws_cloudwatch_log_subscription_filter" "this" {
   destination_arn = aws_kinesis_stream.this.arn
 }
 
+resource "aws_cloudwatch_log_subscription_filter" "additional" {
+  for_each        = var.cloudwatch.additional_log_groups
+  name            = each.value.subscription_filter_name
+  role_arn        = aws_iam_role.cloudwatch_kinesis.arn
+  log_group_name  = each.value.log_group_name
+  filter_pattern  = each.value.filter_pattern
+  destination_arn = aws_kinesis_stream.this.arn
+}
+
+
 resource "aws_iam_role" "firehose" {
   name = var.firehose.role_name
 

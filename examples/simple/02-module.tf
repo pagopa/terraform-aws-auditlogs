@@ -8,6 +8,19 @@ module "aws_auditlogs" {
     subscription_filter_name = "${local.project}-auditlogs-subscription-filter", # Optional
     role_name                = "${local.project}-cloudwatch-kinesis-role",       # Optional
     policy_name              = "${local.project}-cloudwtach-kinesis-policy",     # Optional
+    # additional_log_groups = {
+    #   test_log_group1 = {
+    #     subscription_filter_name = "auditlogs-subscription-filter1"
+    #     log_group_name = "auditlogs-group1"
+    #     filter_pattern = "{ $.audit = \"true\" }"
+    #   },
+    #   test_log_group2 = {
+    #     subscription_filter_name = "auditlogs-subscription-filter2"
+    #     log_group_name =  "auditlogs-group2"
+    #     filter_pattern = "{ $.audit = \"true\" }"
+    #   }
+    # }
+
   }
 
   s3 = {
