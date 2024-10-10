@@ -8,16 +8,6 @@ resource "aws_cloudwatch_log_stream" "this" {
   log_group_name = aws_cloudwatch_log_group.this.name
 }
 
-resource "aws_kinesis_stream" "this" {
-  name             = var.kinesis.stream_name
-  shard_count      = 0
-  retention_period = 240
-
-  stream_mode_details {
-    stream_mode = "ON_DEMAND"
-  }
-}
-
 module "s3_assets_bucket" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "4.1.1"
@@ -89,10 +79,12 @@ resource "aws_iam_policy" "cloudwatch_kinesis" {
         Sid    = "",
         Effect = "Allow",
         Action = [
-          "kinesis:PutRecord",
-          "kinesis:PutRecords"
+   #       "kinesis:PutRecord",
+    #      "kinesis:PutRecords"
+            "firehose:PutRecord",
+            "firehose:PutRecordBatch"
         ],
-        Resource = "${aws_kinesis_stream.this.arn}"
+        Resource = "${aws_kinesis_firehose_delivery_stream.firehose.arn}"
       }
     ]
   })
@@ -108,7 +100,7 @@ resource "aws_cloudwatch_log_subscription_filter" "this" {
   role_arn        = aws_iam_role.cloudwatch_kinesis.arn
   log_group_name  = var.cloudwatch.log_group_name
   filter_pattern  = var.cloudwatch.filter_pattern
-  destination_arn = aws_kinesis_stream.this.arn
+  destination_arn = aws_kinesis_firehose_delivery_stream.firehose.arn
 }
 
 resource "aws_cloudwatch_log_subscription_filter" "additional" {
@@ -117,7 +109,7 @@ resource "aws_cloudwatch_log_subscription_filter" "additional" {
   role_arn        = aws_iam_role.cloudwatch_kinesis.arn
   log_group_name  = each.value.log_group_name
   filter_pattern  = each.value.filter_pattern
-  destination_arn = aws_kinesis_stream.this.arn
+  destination_arn = aws_kinesis_firehose_delivery_stream.firehose.arn
 }
 
 
@@ -145,18 +137,6 @@ resource "aws_iam_policy" "firehose_kinesis" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-      {
-        Sid    = "",
-        Effect = "Allow",
-        Action = [
-          "kinesis:DescribeStream",
-          "kinesis:GetShardIterator",
-          "kinesis:GetRecords",
-          "kinesis:ListShards",
-          "kinesis:ListStreams"
-        ],
-        Resource = "${aws_kinesis_stream.this.arn}"
-      },
       {
         Effect = "Allow",
         Action = [
@@ -200,10 +180,10 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
     file_extension = ".json"
   }
 
-  kinesis_source_configuration {
-    kinesis_stream_arn = aws_kinesis_stream.this.arn
-    role_arn           = aws_iam_role.firehose.arn
-  }
+  # kinesis_source_configuration {
+  #   kinesis_stream_arn = aws_kinesis_stream.this.arn
+  #   role_arn           = aws_iam_role.firehose.arn
+  # }
 }
 
 module "s3_workgroup_name_bucket" {
