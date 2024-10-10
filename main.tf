@@ -8,16 +8,6 @@ resource "aws_cloudwatch_log_stream" "this" {
   log_group_name = aws_cloudwatch_log_group.this.name
 }
 
-resource "aws_kinesis_stream" "this" {
-  name             = var.kinesis.stream_name
-  shard_count      = 0
-  retention_period = 240
-
-  stream_mode_details {
-    stream_mode = "ON_DEMAND"
-  }
-}
-
 module "s3_assets_bucket" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "4.1.1"
@@ -147,18 +137,6 @@ resource "aws_iam_policy" "firehose_kinesis" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-      {
-        Sid    = "",
-        Effect = "Allow",
-        Action = [
-          "kinesis:DescribeStream",
-          "kinesis:GetShardIterator",
-          "kinesis:GetRecords",
-          "kinesis:ListShards",
-          "kinesis:ListStreams"
-        ],
-        Resource = "${aws_kinesis_stream.this.arn}"
-      },
       {
         Effect = "Allow",
         Action = [
