@@ -4,8 +4,8 @@ variable "cloudwatch" {
     log_stream_name          = optional(string, "auditlogs-log-stream"),
     subscription_filter_name = optional(string, "auditlogs-subscription-filter"),
     filter_pattern           = optional(string, "{ $.audit = \"true\" }", ),
-    role_name                = optional(string, "auditlogs-cloudwatch-kinesis-role"),
-    policy_name              = optional(string, "auditlogs-cloudwtach-kinesis-policy"),
+    role_name                = optional(string, "auditlogs-cloudwatch-firehose-role"),
+    policy_name              = optional(string, "auditlogs-cloudwtach-firehose-policy"),
     additional_log_groups = optional(map(object({
       log_group_name           = string
       filter_pattern           = string
@@ -36,12 +36,6 @@ variable "glue" {
     database_name    = optional(string, "auditlogs-glue-database"),
     role_name        = optional(string, "auditlogs-glue-role"),
     policy_name      = optional(string, "auditlogs-glue-policy"),
-  })
-}
-
-variable "kinesis" {
-  type = object({
-    stream_name = optional(string, "auditlogs-kinesis-stream")
   })
 }
 

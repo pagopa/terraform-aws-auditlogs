@@ -23,7 +23,7 @@ module "s3_assets_bucket" {
 }
 
 resource "aws_s3_bucket_object_lock_configuration" "this" {
-  count = var.s3.object_lock_enabled ? 1 : 0
+  count  = var.s3.object_lock_enabled ? 1 : 0
   bucket = module.s3_assets_bucket.s3_bucket_id
 
   rule {
@@ -35,22 +35,22 @@ resource "aws_s3_bucket_object_lock_configuration" "this" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
-  count = var.s3.object_lock_enabled ? 1 : 0
+  count  = var.s3.object_lock_enabled ? 1 : 0
   bucket = module.s3_assets_bucket.s3_bucket_id
 
   rule {
-    id = "delete-logs"
+    id     = "delete-logs"
     status = "Enabled"
-     filter {
-       prefix = "logs/"
-     }
-     expiration {
-       days = var.s3.retention_days+7
-     }
+    filter {
+      prefix = "logs/"
+    }
+    expiration {
+      days = var.s3.retention_days + 7
+    }
   }
 }
 
-resource "aws_iam_role" "cloudwatch_kinesis" {
+resource "aws_iam_role" "cloudwatch_firehose" {
   name = var.cloudwatch.role_name
 
   assume_role_policy = jsonencode({
@@ -68,7 +68,7 @@ resource "aws_iam_role" "cloudwatch_kinesis" {
   })
 }
 
-resource "aws_iam_policy" "cloudwatch_kinesis" {
+resource "aws_iam_policy" "cloudwatch_firehose" {
   name_prefix = var.cloudwatch.policy_name
 
   policy = jsonencode({
@@ -79,10 +79,8 @@ resource "aws_iam_policy" "cloudwatch_kinesis" {
         Sid    = "",
         Effect = "Allow",
         Action = [
-   #       "kinesis:PutRecord",
-    #      "kinesis:PutRecords"
-            "firehose:PutRecord",
-            "firehose:PutRecordBatch"
+          "firehose:PutRecord",
+          "firehose:PutRecordBatch"
         ],
         Resource = "${aws_kinesis_firehose_delivery_stream.firehose.arn}"
       }
@@ -90,14 +88,14 @@ resource "aws_iam_policy" "cloudwatch_kinesis" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "cloudwatch_kinesis" {
-  role       = aws_iam_role.cloudwatch_kinesis.name
-  policy_arn = aws_iam_policy.cloudwatch_kinesis.arn
+resource "aws_iam_role_policy_attachment" "cloudwatch_firehose" {
+  role       = aws_iam_role.cloudwatch_firehose.name
+  policy_arn = aws_iam_policy.cloudwatch_firehose.arn
 }
 
 resource "aws_cloudwatch_log_subscription_filter" "this" {
   name            = var.cloudwatch.subscription_filter_name
-  role_arn        = aws_iam_role.cloudwatch_kinesis.arn
+  role_arn        = aws_iam_role.cloudwatch_firehose.arn
   log_group_name  = var.cloudwatch.log_group_name
   filter_pattern  = var.cloudwatch.filter_pattern
   destination_arn = aws_kinesis_firehose_delivery_stream.firehose.arn
@@ -106,7 +104,7 @@ resource "aws_cloudwatch_log_subscription_filter" "this" {
 resource "aws_cloudwatch_log_subscription_filter" "additional" {
   for_each        = var.cloudwatch.additional_log_groups
   name            = each.value.subscription_filter_name
-  role_arn        = aws_iam_role.cloudwatch_kinesis.arn
+  role_arn        = aws_iam_role.cloudwatch_firehose.arn
   log_group_name  = each.value.log_group_name
   filter_pattern  = each.value.filter_pattern
   destination_arn = aws_kinesis_firehose_delivery_stream.firehose.arn
@@ -131,7 +129,7 @@ resource "aws_iam_role" "firehose" {
   })
 }
 
-resource "aws_iam_policy" "firehose_kinesis" {
+resource "aws_iam_policy" "firehose_s3" {
   name_prefix = var.firehose.policy_name
 
   policy = jsonencode({
@@ -148,9 +146,9 @@ resource "aws_iam_policy" "firehose_kinesis" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "firehose_kinesis" {
+resource "aws_iam_role_policy_attachment" "firehose_s3" {
   role       = var.firehose.role_name
-  policy_arn = aws_iam_policy.firehose_kinesis.arn
+  policy_arn = aws_iam_policy.firehose_s3.arn
 }
 
 
@@ -179,11 +177,6 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
     }
     file_extension = ".json"
   }
-
-  # kinesis_source_configuration {
-  #   kinesis_stream_arn = aws_kinesis_stream.this.arn
-  #   role_arn           = aws_iam_role.firehose.arn
-  # }
 }
 
 module "s3_workgroup_name_bucket" {

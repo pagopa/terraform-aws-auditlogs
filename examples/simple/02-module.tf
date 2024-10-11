@@ -6,8 +6,8 @@ module "aws_auditlogs" {
     log_group_name           = "${local.project}-auditlogs-group",               # Optional
     log_stream_name          = "${local.project}-auditlogs-stream",              # Optional
     subscription_filter_name = "${local.project}-auditlogs-subscription-filter", # Optional
-    role_name                = "${local.project}-cloudwatch-kinesis-role",       # Optional
-    policy_name              = "${local.project}-cloudwtach-kinesis-policy",     # Optional
+    role_name                = "${local.project}-cloudwatch-firehose-role",      # Optional
+    policy_name              = "${local.project}-cloudwtach-firehose-policy",    # Optional
     # additional_log_groups = {
     #   test_log_group1 = {
     #     subscription_filter_name = "auditlogs-subscription-filter1"
@@ -41,14 +41,10 @@ module "aws_auditlogs" {
     policy_name      = "${local.project}-auditlogs-glue-policy",  # Optional
   }
 
-  kinesis = {
-    stream_name = "${local.project}-auditlogs-kinesis-stream" # Optional
-  }
-
   firehose = {
     stream_name          = "${local.project}-auditlogs-firehose-stream", # Optional
     delivery_stream_name = "${local.project}-firehose-delivery-stream",  # Optional
     role_name            = "${local.project}-firehose-role",             # Optional
-    policy_name          = "${local.project}-firehose-kinesis-policy",   # Optional
+    policy_name          = "${local.project}-firehose-s3-policy",        # Optional
   }
 }
