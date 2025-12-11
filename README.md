@@ -1,4 +1,21 @@
-# terraform-aws-auditlogs<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+# terraform-aws-auditlogs
+
+---
+## Repository Structure & Details (Auto-generated)
+
+### Scopo
+Realizza la pipeline di audit AWS con Kinesis Firehose, S3 con Object Lock e Glue/Athena per interrogazione dei log di sicurezza, mantenendo immutabilità e catalogo dati.
+
+### Cartelle
+- `main.tf`: Firehose delivery stream, bucket S3 con Object Lock, Glue DB/table, Crawler, IAM.
+
+### Script
+Nessuno (solo infra).
+
+### Note
+Verificare il parsing del Glue Crawler su nuovi formati log.
+
+<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements
 
 | Name | Version |
