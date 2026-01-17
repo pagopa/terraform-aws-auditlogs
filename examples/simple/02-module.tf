@@ -24,9 +24,11 @@ module "aws_auditlogs" {
   }
 
   s3 = {
-    bucket_name         = "${local.project}-auditlogs-s3-bucket" # Optional
-    object_lock_enabled = false
-    retention_days      = 1
+    bucket_name                             = "${local.project}-auditlogs-s3-bucket" # Optional
+    object_lock_enabled                     = true
+    retention_days                          = 10
+    intelligent_tiering_archive_access      = 90
+    intelligent_tiering_deep_archive_access = 180
   }
 
   athena = {

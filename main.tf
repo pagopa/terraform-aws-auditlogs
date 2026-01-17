@@ -20,6 +20,20 @@ module "s3_assets_bucket" {
   object_lock_enabled      = var.s3.object_lock_enabled
   control_object_ownership = true
   object_ownership         = "ObjectWriter"
+
+  intelligent_tiering = {
+    general = {
+      status = "Enabled"
+      tiering = {
+        ARCHIVE_ACCESS = {
+          days = var.s3.intelligent_tiering_archive_access
+        },
+        DEEP_ARCHIVE_ACCESS = {
+          days = var.s3.intelligent_tiering_deep_archive_access
+        }
+      }
+    }
+  }
 }
 
 resource "aws_s3_bucket_object_lock_configuration" "this" {
@@ -41,9 +55,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
   rule {
     id     = "delete-logs"
     status = "Enabled"
-    filter {
-      prefix = "logs/"
-    }
     expiration {
       days = var.s3.retention_days + 7
     }

@@ -17,9 +17,11 @@ variable "cloudwatch" {
 
 variable "s3" {
   type = object({
-    bucket_name         = optional(string, "auditlogs-s3-bucket")
-    object_lock_enabled = bool
-    retention_days      = number
+    bucket_name                             = optional(string, "auditlogs-s3-bucket")
+    object_lock_enabled                     = bool
+    retention_days                          = number
+    intelligent_tiering_archive_access      = optional(number, 365)
+    intelligent_tiering_deep_archive_access = optional(number, 730)
   })
 }
 
